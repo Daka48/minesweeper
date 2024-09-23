@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+    <meta charset="UTF-8">
+    <title>F1 트랙 레이싱</title>
     <style>
         * {
             text-align: center;
@@ -9,136 +11,184 @@
         #board {
             margin-left: auto;
             margin-right: auto;
+            border-collapse: collapse;
         }
 
         #board tr td {
-            border: 1px solid white;
-            background: #34da79;
-            width: 16px;
-            height: 16px;
-            text-align: center;
+            border: 1px solid #333;
+            width: 25px;
+            height: 25px;
             cursor: pointer;
+            background: #888; /* 기본 회색 */
         }
 
-        #board tr td.clicked {
-            background: #6c5ee7;
+        /* 도로의 트랙 */
+        .track {
+            background: #ccc; /* 연한 회색으로 도로를 표시 */
         }
 
-        #board tr td.mine {
-            background: #FF0000;
+        /* 데드존 스타일 - 보이지 않게 처리 */
+        .hidden-dead-zone {
+            background: #ccc; /* 연한 회색으로 유지 */
         }
 
-        #board tr td.number {
-            color: white;
+        /* 클릭 시 데드존이 보이도록 */
+        .dead-zone {
+            background: #ff0000 !important; /* 빨간색으로 데드존 표시 */
+        }
+
+        /* 클릭된 구역 스타일 */
+        .clicked {
+            background: #00ff00 !important; /* 클릭된 구역 색상 (초록색) */
+        }
+
+        /* 노란색 경고 */
+        .warning {
+            background: #ffff00 !important; /* 노란색 */
+        }
+
+        /* 빈공간 (하얀색) */
+        .blank {
+            background: #fff !important; /* 하얀색 */
         }
     </style>
 </head>
 <body>
-    <h1>지뢰찾기</h1>
+    <h1>F1 트랙: 레이싱 라인을 따라가세요!</h1>
     <table id="board"></table>
     <button onclick="genGrid();">새로운 게임</button>
+    <p id="record"></p> <!-- 클릭한 셀의 수를 표시할 곳 -->
     <script>
+        const ROWS = 20;  
+        const COLS = 20;  
         let grid = document.getElementById("board");
         let board = [];
-        const ROWS = 8;
-        const COLS = 8;
-        const MINE_COUNT = 10;
-
-        genGrid();
+        let lastClicked = null; 
+        let clickCount = 0; 
+        let startCell = null; // 첫 클릭한 셀 위치
 
         function genGrid() {
             grid.innerHTML = "";
-            board = [];
+            board = []; // 보드 초기화
+            lastClicked = null; // 마지막 클릭 초기화
+            clickCount = 0; // 클릭 개수 초기화
+            startCell = null; // 시작 셀 초기화
+            document.getElementById("record").innerText = ""; // 기록 초기화
 
-            // 보드 초기화
             for (let i = 0; i < ROWS; i++) {
                 let row = grid.insertRow(i);
                 board[i] = [];
                 for (let j = 0; j < COLS; j++) {
                     let cell = row.insertCell(j);
                     cell.onclick = function () { clickBox(i, j, cell); };
-                    board[i][j] = { mine: false, clicked: false, count: 0 };
-                }
-            }
+                    cell.className = "track"; // 기본적으로 도로는 연한 회색
+                    
+                    // 중심 빈 공간을 하얀색으로 설정
+                    if (i >= 7 && i <= 12 && j >= 7 && j <= 12) {
+                        cell.className = "blank";
+                    }
 
-            // 지뢰 배치
-            placeMines();
-            // 주변 지뢰 개수 계산
-            calculateAdjacentMines();
-        }
-
-        function placeMines() {
-            let minesPlaced = 0;
-            while (minesPlaced < MINE_COUNT) {
-                let i = Math.floor(Math.random() * ROWS);
-                let j = Math.floor(Math.random() * COLS);
-                if (!board[i][j].mine) {
-                    board[i][j].mine = true;
-                    minesPlaced++;
-                }
-            }
-        }
-
-        function calculateAdjacentMines() {
-            for (let i = 0; i < ROWS; i++) {
-                for (let j = 0; j < COLS; j++) {
-                    if (board[i][j].mine) {
-                        for (let x = -1; x <= 1; x++) {
-                            for (let y = -1; y <= 1; y++) {
-                                const ni = i + x;
-                                const nj = j + y;
-                                if (ni >= 0 && ni < ROWS && nj >= 0 && nj < COLS) {
-                                    board[ni][nj].count++;
-                                }
-                            }
+                    // 무작위 데드존 생성 (도로 위에서만)
+                    if (cell.classList.contains("track") && isInInnerArea(i, j)) {
+                        if (Math.random() < 0.25) { // 안쪽 구역은 25% 확률로 데드존 생성
+                            cell.classList.add("hidden-dead-zone"); // 데드존을 숨긴 상태로 초기화
+                        }
+                    } else if (cell.classList.contains("track")) {
+                        if (Math.random() < 0.05) { // 바깥쪽 구역은 5% 확률로 데드존 생성
+                            cell.classList.add("hidden-dead-zone"); // 데드존을 숨긴 상태로 초기화
                         }
                     }
+
+                    board[i][j] = cell;
                 }
             }
+        }
+
+        // 안쪽 영역인지 확인하는 함수
+        function isInInnerArea(i, j) {
+            return (i >= 6 && i <= 13 && j >= 6 && j <= 13);
         }
 
         function clickBox(i, j, cell) {
-            if (board[i][j].clicked) return;
+            // 이미 방문한 셀이나 빈 공간은 무시
+            if (cell.classList.contains("clicked") || cell.classList.contains("warning") || cell.classList.contains("blank")) return;
 
-            board[i][j].clicked = true;
-            cell.className = "clicked";
+            // 레이싱 라인이 처음 시작되거나 인접한 칸이 아니라면 클릭을 무시
+            if (lastClicked && !isAdjacent(lastClicked, {i, j})) return;
 
-            if (board[i][j].mine) {
-                cell.className = "mine";
-                revealMines();
-                alert("게임이 종료되었습니다.");
-            } else {
-                if (board[i][j].count > 0) {
-                    cell.classList.add("number");
-                    cell.innerText = board[i][j].count;
-                } else {
-                    cell.innerText = '';
-                    openNearbyCells(i, j);
-                }
+            // 첫 클릭 위치 저장
+            if (!startCell) {
+                startCell = { i, j }; // 첫 클릭한 셀 위치 저장
             }
-        }
 
-        function openNearbyCells(i, j) {
+            // 만약 데드존을 클릭하면 빨간색으로 표시
+            if (cell.classList.contains("hidden-dead-zone")) {
+                cell.classList.remove("hidden-dead-zone");
+                cell.classList.add("dead-zone");
+                alert(`리타이어! 데드존에 도착했습니다. 총 클릭한 셀 수: ${clickCount}`);
+                genGrid(); // 새로운 게임 시작
+                return;
+            }
+
+            // 주변 데드존 개수 세기
+            let deadZoneCount = 0;
             for (let x = -1; x <= 1; x++) {
                 for (let y = -1; y <= 1; y++) {
                     const ni = i + x;
                     const nj = j + y;
                     if (ni >= 0 && ni < ROWS && nj >= 0 && nj < COLS) {
-                        clickBox(ni, nj, grid.rows[ni].cells[nj]);
+                        if (board[ni][nj].classList.contains("hidden-dead-zone")) {
+                            deadZoneCount++;
+                        }
                     }
                 }
+            }
+
+            // 데드존과 가까우면 노란색, 아니면 초록색으로 표시
+            if (deadZoneCount > 0) {
+                cell.className = "warning";
+                cell.innerText = deadZoneCount; // 주변 데드존 개수 표시
+            } else {
+                cell.className = "clicked";
+            }
+
+            // 클릭한 셀 개수 증가
+            clickCount++;
+            document.getElementById("record").innerText = `클릭한 셀의 개수: ${clickCount}`; // 클릭 개수 업데이트
+
+            // 마지막 클릭한 셀 업데이트
+            lastClicked = { i, j };
+
+            // 모든 트랙 셀을 클릭했는지 확인
+            checkCompletion();
+        }
+
+        // 두 셀이 인접한지 확인하는 함수 (대각선 포함)
+        function isAdjacent(pos1, pos2) {
+            return Math.abs(pos1.i - pos2.i) <= 1 && Math.abs(pos1.j - pos2.j) <= 1;
+        }
+
+        // 모든 트랙 셀 클릭 여부 확인
+        function checkCompletion() {
+            let allClicked = true;
+
+            for (let i = 0; i < ROWS; i++) {
+                for (let j = 0; j < COLS; j++) {
+                    if (board[i][j].classList.contains("track") && !board[i][j].classList.contains("clicked")) {
+                        allClicked = false;
+                        break;
+                    }
+                }
+            }
+
+            if (allClicked) {
+                alert("성공! 모든 트랙을 완주했습니다!");
+                genGrid(); // 게임 재시작
             }
         }
 
-        function revealMines() {
-            for (let i = 0; i < ROWS; i++) {
-                for (let j = 0; j < COLS; j++) {
-                    if (board[i][j].mine) {
-                        grid.rows[i].cells[j].className = "mine";
-                    }
-                }
-            }
-        }
+        // 게임 초기화
+        genGrid();
     </script>
 </body>
 </html>
