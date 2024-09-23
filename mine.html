@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <style>
+        * {
+            text-align: center;
+        }
+
+        #board {
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        #board tr td {
+            border: 1px solid white;
+            background: #34da79;
+            width: 16px;
+            height: 16px;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        #board tr td.clicked {
+            background: #6c5ee7;
+        }
+
+        #board tr td.mine {
+            background: #FF0000;
+        }
+
+        #board tr td.number {
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>지뢰찾기</h1>
+    <table id="board"></table>
+    <button onclick="genGrid();">새로운 게임</button>
+    <script>
+        let grid = document.getElementById("board");
+        let board = [];
+        const ROWS = 8;
+        const COLS = 8;
+        const MINE_COUNT = 10;
+
+        genGrid();
+
+        function genGrid() {
+            grid.innerHTML = "";
+            board = [];
+
+            // 보드 초기화
+            for (let i = 0; i < ROWS; i++) {
+                let row = grid.insertRow(i);
+                board[i] = [];
+                for (let j = 0; j < COLS; j++) {
+                    let cell = row.insertCell(j);
+                    cell.onclick = function () { clickBox(i, j, cell); };
+                    board[i][j] = { mine: false, clicked: false, count: 0 };
+                }
+            }
+
+            // 지뢰 배치
+            placeMines();
+            // 주변 지뢰 개수 계산
+            calculateAdjacentMines();
+        }
+
+        function placeMines() {
+            let minesPlaced = 0;
+            while (minesPlaced < MINE_COUNT) {
+                let i = Math.floor(Math.random() * ROWS);
+                let j = Math.floor(Math.random() * COLS);
+                if (!board[i][j].mine) {
+                    board[i][j].mine = true;
+                    minesPlaced++;
+                }
+            }
+        }
+
+        function calculateAdjacentMines() {
+            for (let i = 0; i < ROWS; i++) {
+                for (let j = 0; j < COLS; j++) {
+                    if (board[i][j].mine) {
+                        for (let x = -1; x <= 1; x++) {
+                            for (let y = -1; y <= 1; y++) {
+                                const ni = i + x;
+                                const nj = j + y;
+                                if (ni >= 0 && ni < ROWS && nj >= 0 && nj < COLS) {
+                                    board[ni][nj].count++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function clickBox(i, j, cell) {
+            if (board[i][j].clicked) return;
+
+            board[i][j].clicked = true;
+            cell.className = "clicked";
+
+            if (board[i][j].mine) {
+                cell.className = "mine";
+                revealMines();
+                alert("게임이 종료되었습니다.");
+            } else {
+                if (board[i][j].count > 0) {
+                    cell.classList.add("number");
+                    cell.innerText = board[i][j].count;
+                } else {
+                    cell.innerText = '';
+                    openNearbyCells(i, j);
+                }
+            }
+        }
+
+        function openNearbyCells(i, j) {
+            for (let x = -1; x <= 1; x++) {
+                for (let y = -1; y <= 1; y++) {
+                    const ni = i + x;
+                    const nj = j + y;
+                    if (ni >= 0 && ni < ROWS && nj >= 0 && nj < COLS) {
+                        clickBox(ni, nj, grid.rows[ni].cells[nj]);
+                    }
+                }
+            }
+        }
+
+        function revealMines() {
+            for (let i = 0; i < ROWS; i++) {
+                for (let j = 0; j < COLS; j++) {
+                    if (board[i][j].mine) {
+                        grid.rows[i].cells[j].className = "mine";
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
